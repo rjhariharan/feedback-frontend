@@ -1,77 +1,106 @@
 import { useState, useEffect } from "react";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import FeedbackBoard from "./pages/FeedbackBoard";
-import API from "./api";
+import Signup from "./components/signup";
+import Login from "./components/login";
+import FeedbackBoard from "./components/feedbackboard";
 
 export default function App() {
-  const [user, setUser] = useState(null);
-  const [showLogin, setShowLogin] = useState(true);
+  const [page, setPage] = useState("login"); // Default to login for safety
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // 🔍 Check token validity on app load
   useEffect(() => {
+    // Check if user is already logged in
     const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
+    const user = localStorage.getItem("user");
 
-    // No token means first-time open → go to login
-    if (!token || !userData) {
-      handleLogout();
-      return;
+    if (token && user) {
+      try {
+        JSON.parse(user); // Validate user data
+        setPage("dashboard");
+      } catch (err) {
+        console.error("Invalid user data in localStorage:", err);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setPage("login");
+      }
+    } else {
+      setPage("login");
     }
 
-    // Optional: Verify token via backend (more secure)
-    verifyToken(token);
+    setLoading(false);
   }, []);
 
-  async function verifyToken(token) {
-    try {
-      const res = await API.get("/auth/verify", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.data.valid) {
-        setUser(res.data.user);
-      } else {
-        handleLogout();
-      }
-    } catch (err) {
-      console.warn("Invalid token or session expired:", err);
-      handleLogout();
-    } finally {
-      setLoading(false);
-    }
+  function handleSignup() {
+    setPage("login");
   }
 
-  function handleLogin(userData) {
-    setUser(userData);
-    setShowLogin(false);
-    localStorage.setItem("user", JSON.stringify(userData));
+  function handleLogin() {
+    setPage("dashboard");
   }
 
   function handleLogout() {
-    setUser(null);
-    setShowLogin(true);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setLoading(false);
+    localStorage.clear();
+    setPage("login");
   }
 
-  if (loading) return <p>Loading...</p>;
-
-  if (!user) {
-    return showLogin ? (
-      <Login
-        onLogin={() => window.location.reload()}
-        onSwitchToSignup={() => setShowLogin(false)}
-      />
-    ) : (
-      <Signup
-        onSignup={() => setShowLogin(true)}
-        onSwitchToLogin={() => setShowLogin(true)}
-      />
+  // Show loading screen while checking authentication
+  if (loading) {
+    return (
+      <div style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        height: "100vh",
+        fontSize: "18px",
+        color: "#333"
+      }}>
+        Loading...
+      </div>
     );
   }
 
-  return <FeedbackBoard user={user} onLogout={handleLogout} />;
+  // Show error screen if there's a critical error
+  if (error) {
+    return (
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        height: "100vh",
+        fontSize: "18px",
+        color: "#333",
+        textAlign: "center",
+        padding: "20px"
+      }}>
+        <h2>⚠️ Application Error</h2>
+        <p>{error}</p>
+        <button
+          onClick={() => {
+            setError("");
+            setPage("login");
+          }}
+          style={{
+            padding: "10px 20px",
+            background: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+            marginTop: "20px"
+          }}
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {page === "signup" && <Signup onSignup={handleSignup} onSwitchToLogin={() => setPage("login")} />}
+      {page === "login" && <Login onLogin={handleLogin} onSwitchToSignup={() => setPage("signup")} />}
+      {page === "dashboard" && <FeedbackBoard onLogout={handleLogout} />}
+    </>
+  );
 }
