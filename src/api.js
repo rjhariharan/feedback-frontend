@@ -159,13 +159,12 @@ export const feedbackAPI = {
 
 export const testConnection = async () => {
   try {
-    console.log("Testing backend connection...");
-    const response = await fetch('http://localhost:5000/api/health', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/health`, {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
     if (response.ok) {
       const data = await response.json();
